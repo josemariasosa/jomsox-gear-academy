@@ -1,49 +1,24 @@
 #![no_std]
-use gstd::{msg, debug, ActorId};
+use gstd::{msg, debug};
 use gstd::prelude::*; // String
-
-static mut GREETING: String = String::new();
-static mut ADMIN:  ActorId = ActorId::zero();
-
-#[derive(Debug, Encode, Decode, TypeInfo)]
-enum Message {
-    SetNewGreeting { greeting: String },
-    Greet,
-}
 
 #[no_mangle]
 pub unsafe extern "C" fn handle() {
-    let message: Message = msg::load().expect("Could not load Message");
-    match message {
-        Message::SetNewGreeting { greeting } => {
-            assert_eq!(msg::source(), ADMIN, "Only admin can set new greeting");
-            GREETING = greeting;
-            debug!(
-                "Greeting was set to '{}'",
-                GREETING
-            );
-        },
-        Message::Greet => {
-            msg::reply_bytes(GREETING.clone(), 0).unwrap();
-        },
-    }
+    let message = String::from_utf8(msg::load_bytes()).expect("Invalid message");
+    debug!("Message: {}", message);
+    assert!(message.contains("PING"), "PING not in message!");
+
+    let response = "PONG".to_string();
+    msg::reply_bytes(response, 0).unwrap();
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn init() {
-    GREETING = String::from_utf8(msg::load_bytes()).expect("Invalid message");
-    ADMIN = msg::source();
-    debug!(
-      "Program was initialized with '{}' greeting and '{:?}' admin", 
-      GREETING, ADMIN
-    );
-}
+pub unsafe extern "C" fn init() {}
 
 #[cfg(test)]
  mod tests {
-    use gstd::ToString;
+    use super::String;
     use gtest::{Program, System};
-    use super::Message;
 
     fn init(system: &System) {
         system.init_logger();
@@ -56,21 +31,13 @@ pub unsafe extern "C" fn init() {
     }
 
     #[test]
-    fn set_new_greeting() {
+    fn test_ping() {
         let system = System::new();
         init(&system);
 
         let program = system.get_program(1);
-        let res = program.send(
-            2,
-            Message::SetNewGreeting {
-                greeting: "Hello".to_string(),
-            },
-        );
-        assert!(res.log().is_empty());
-
-        let res = program.send(3, Message::Greet);
-        assert!(res.contains(&(3, "Hello")));
+        let res = program.send_bytes(2, "This is a PING message");
+        assert!(res.contains(&(2, "PONG")));
     }
 
     #[test]
@@ -80,10 +47,8 @@ pub unsafe extern "C" fn init() {
 
         let program = system.get_program(1);
         let res = program.send(
-            3,
-            Message::SetNewGreeting {
-                greeting: "Hello".to_string(),
-            },
+            2,
+            String::from("ping")
         );
         assert!(res.main_failed());
     }
