@@ -1,8 +1,9 @@
 #![no_std]
-use gstd::{msg, String, debug, ActorId};
+use gstd::{msg, debug, ActorId};
+use gstd::prelude::*; // String
 
 static mut GREETING: String = String::new();
-static mut ADMIN:  ActorId = ActorId::new([0u8; 32]);
+static mut ADMIN:  ActorId = ActorId::zero();
 
 #[derive(Debug, Encode, Decode, TypeInfo)]
 enum Message {
@@ -26,14 +27,6 @@ pub unsafe extern "C" fn handle() {
             msg::reply_bytes(GREETING.clone(), 0).unwrap();
         },
     }
-
-
-    // let new_msg = String::from_utf8(msg::load_bytes()).expect("Invalid message");
-    // if new_msg == "Hello" {
-    //     msg::reply(b"Hello!", 0).expect("Error in sending reply");
-    // }
-
-    // msg::reply_bytes(GREETING.clone(),0).expect("Error in sending reply");
 }
 
 #[no_mangle]
@@ -48,7 +41,9 @@ pub unsafe extern "C" fn init() {
 
 #[cfg(test)]
  mod tests {
+    use gstd::ToString;
     use gtest::{Program, System};
+    use super::Message;
 
     fn init(system: &System) {
         system.init_logger();
@@ -78,20 +73,18 @@ pub unsafe extern "C" fn init() {
         assert!(res.contains(&(3, "Hello")));
     }
 
-//     #[test]
-//     fn test_hello() {
-//         let system = System::new();
-//         system.init_logger();
-//         let program = Program::current(&system);
+    #[test]
+    fn fail() {
+        let system = System::new();
+        init(&system);
 
-//         let greeting = "Hi";
-//         let res = program.send_bytes(2, greeting);
-//         assert!(res.log().is_empty());
-
-//         // let res = program.send_bytes(2, "Hello");
-//         // let reply = "Hello!".as_bytes();
-//         // assert!(res.contains(&(2, reply)));
-//         let res = program.send_bytes(2, "");
-//         assert!(res.contains(&(2, greeting)));
-//    }
+        let program = system.get_program(1);
+        let res = program.send(
+            3,
+            Message::SetNewGreeting {
+                greeting: "Hello".to_string(),
+            },
+        );
+        assert!(res.main_failed());
+    }
 }
