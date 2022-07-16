@@ -219,6 +219,6 @@ mod tests {
         assert!(!reimburse(&loan, BORROWER, 1100).main_failed());
 
         // must fail since loan is already closed
-        assert!(fund(&loan, LENDER, 1000).main_failed());
+        assert!(reimburse(&loan, BORROWER, 1100).main_failed());
     }
 }
